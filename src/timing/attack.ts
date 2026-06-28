@@ -1,0 +1,149 @@
+/**
+ * The centrepiece: recover a hidden secret one character at a time using nothing
+ * but the {@link Oracle}'s timing.
+ *
+ * At each position the attacker fixes the characters recovered so far, then tries
+ * every candidate for the current position (padding the rest with a fixed filler).
+ * Against a vulnerable oracle the *correct* candidate makes the comparison match
+ * one byte further before it stops, so it costs measurably more than every wrong
+ * candidate — which all stop at the current position. Pick the costliest
+ * candidate, append it, move on. Against a constant-time oracle every candidate
+ * costs the same, the winner is noise, and recovery fails — which is the point.
+ *
+ * The engine is exposed as a generator so the UI can animate one position per
+ * frame, and as {@link runAttack} for tests and headless use.
+ */
+
+import { stdDev } from "./stats";
+import type { AttackResult, AttackStep, CandidateScore, Oracle } from "./types";
+
+export interface AttackOptions {
+  /** Candidate alphabet to try at each position. */
+  alphabet: string;
+  /**
+   * Number of interleaved rounds. Each round takes ONE measurement of every
+   * candidate, round-robin, so timing drift across the sweep biases all
+   * candidates equally instead of whoever happens to be measured last. Per
+   * candidate the cost is the trimmed mean over its rounds.
+   */
+  samplesPerCandidate: number;
+  /** Character used to pad not-yet-recovered positions. Must be deterministic. */
+  filler: string;
+  /**
+   * A winner this many candidate-cost std-devs above the runner-up (or fewer) is
+   * flagged low-confidence: the position was a guess, not a clean read.
+   */
+  confidenceThreshold: number;
+}
+
+export function defaultAttackOptions(alphabet: string): AttackOptions {
+  return {
+    alphabet,
+    samplesPerCandidate: 18,
+    filler: alphabet[0] ?? "a",
+    confidenceThreshold: 1.0
+  };
+}
+
+/**
+ * Score every candidate for one position, sorted by cost descending (winner
+ * first). Candidates are measured INTERLEAVED across rounds — every candidate
+ * gets one measurement before any gets its second — so slow machine drift over
+ * the sweep cancels out instead of advantaging the candidates measured later.
+ * Each candidate's cost is the trimmed mean of its rounds, which discards the GC
+ * spikes a plain mean would let through.
+ */
+function scorePosition(
+  oracle: Oracle,
+  recovered: string,
+  position: number,
+  opts: AttackOptions
+): { scores: CandidateScore[]; measurements: number } {
+  const tailLength = oracle.length - position - 1;
+  const tail = opts.filler.repeat(Math.max(0, tailLength));
+  const alphabet = opts.alphabet;
+  const guesses = Array.from(alphabet, (ch) => recovered + ch + tail);
+  const samples: number[][] = Array.from(alphabet, () => []);
+  let measurements = 0;
+
+  for (let round = 0; round < opts.samplesPerCandidate; round += 1) {
+    for (let i = 0; i < alphabet.length; i += 1) {
+      samples[i].push(oracle.measure(guesses[i]));
+      measurements += 1;
+    }
+  }
+
+  // Use the MINIMUM batch time per candidate, not the mean. Timing noise here is
+  // one-sided — GC, scheduling and contention only ever ADD time — so the fastest
+  // observed batch is the cleanest estimate of a candidate's intrinsic compute.
+  // The correct character intrinsically does one byte more work, so even its
+  // least-interrupted run is slower than the wrong candidates' least-interrupted
+  // runs. Taking the min filters the additive noise a mean would average in.
+  const scores: CandidateScore[] = Array.from(alphabet, (ch, i) => ({
+    char: ch,
+    cost: Math.min(...samples[i])
+  }));
+
+  scores.sort((a, b) => b.cost - a.cost);
+  return { scores, measurements };
+}
+
+function buildStep(
+  scores: CandidateScore[],
+  position: number,
+  recovered: string,
+  measurements: number,
+  threshold: number
+): AttackStep {
+  const best = scores[0];
+  const runnerUp = scores[1] ?? best;
+  const noise = stdDev(scores.map((s) => s.cost));
+  const margin =
+    noise > 0
+      ? (best.cost - runnerUp.cost) / noise
+      : best.cost > runnerUp.cost
+        ? Number.POSITIVE_INFINITY
+        : 0;
+  return {
+    position,
+    candidates: scores,
+    best: best.char,
+    runnerUp: runnerUp.char,
+    margin,
+    noise,
+    recovered: recovered + best.char,
+    measurements,
+    lowConfidence: margin < threshold
+  };
+}
+
+/**
+ * Generator form. Yields one {@link AttackStep} per secret position so a caller
+ * can render each position as it resolves. The heavy measurement work for a
+ * position happens in the `next()` that produces that position's step.
+ */
+export function* attackSteps(oracle: Oracle, opts: AttackOptions): Generator<AttackStep> {
+  let recovered = "";
+  let measurements = 0;
+  for (let position = 0; position < oracle.length; position += 1) {
+    const { scores, measurements: used } = scorePosition(oracle, recovered, position, opts);
+    measurements += used;
+    const step = buildStep(scores, position, recovered, measurements, opts.confidenceThreshold);
+    recovered = step.recovered;
+    yield step;
+  }
+}
+
+/** Run the whole attack to completion and collect every step. */
+export function runAttack(oracle: Oracle, opts: AttackOptions): AttackResult {
+  const steps: AttackStep[] = [];
+  for (const step of attackSteps(oracle, opts)) {
+    steps.push(step);
+  }
+  const last = steps[steps.length - 1];
+  return {
+    recovered: last ? last.recovered : "",
+    steps,
+    measurements: last ? last.measurements : 0
+  };
+}

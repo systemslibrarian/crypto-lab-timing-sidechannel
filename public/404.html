@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redirecting...</title>
+    <script>
+      (function redirectForSpa() {
+        var path = window.location.pathname;
+        var base = "/crypto-lab-timing-sidechannel/";
+        var normalized = path.startsWith(base) ? path.slice(base.length) : "";
+        var destination = base + "?p=" + encodeURIComponent(normalized + window.location.search + window.location.hash);
+        window.location.replace(destination);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>
