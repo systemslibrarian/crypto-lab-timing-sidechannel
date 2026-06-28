@@ -76,11 +76,16 @@ describe("UI integration", () => {
       "s3-title",
       "s4-title",
       "s5-title",
+      "s2-sweep",
+      "s2-sweep-canvas",
       "s3-run",
       "s3-regen",
       "s3-slots",
       "s3-canvas",
-      "s3-effort"
+      "s3-effort",
+      "s3-why",
+      "s3-board-run",
+      "s3-board"
     ]) {
       expect(document.getElementById(id), `#${id} should exist`).not.toBeNull();
     }

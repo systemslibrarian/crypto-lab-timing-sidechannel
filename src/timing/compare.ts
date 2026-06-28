@@ -106,3 +106,21 @@ export function bytesExaminedVulnerable(secret: string, guess: string): number {
 export function bytesExaminedConstant(secret: string, guess: string): number {
   return Math.max(secret.length, guess.length);
 }
+
+/**
+ * Build a guess that matches `secret` for exactly `matched` leading characters,
+ * then differs (so the vulnerable comparator stops right there). Used by the
+ * prefix-sweep to trace the leak shape. A `matched` of `secret.length` returns
+ * the secret itself (a full match).
+ */
+export function guessWithMatchedPrefix(secret: string, matched: number): string {
+  const clamped = Math.max(0, Math.min(matched, secret.length));
+  if (clamped >= secret.length) {
+    return secret;
+  }
+  const head = secret.slice(0, clamped);
+  // flip one bit of the next byte to guarantee a mismatch at exactly `clamped`
+  const wrong = String.fromCharCode(secret.charCodeAt(clamped) ^ 0x01);
+  const tail = secret.slice(clamped + 1).replace(/[\s\S]/g, "x");
+  return head + wrong + tail;
+}

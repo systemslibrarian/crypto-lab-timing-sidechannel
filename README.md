@@ -34,9 +34,13 @@ production library.
 Generate a fresh hidden secret, choose the target (vulnerable or constant-time) and
 the timing channel (live `performance.now()` or an idealised noise-free operation
 count), then launch the attack and watch each character resolve in an animated bar
-chart as the recovered string fills in. Section 2 also lets you measure both
-implementations against your own demo secret and guess. Controls include the target
-implementation, the timing channel, the number of measurements per byte, and a
+chart as the recovered string fills in — with a per-position "why this character won"
+explanation. Section 2 lets you measure both implementations against your own demo
+secret and guess, and sweep every matching-prefix length to plot the rising
+vulnerable curve against the flat constant-time line. A one-click "run all four
+modes" board proves the same secret is recovered only when the implementation leaks,
+and that the idealised channel matches the live one in shape. Controls include the
+target implementation, the timing channel, the number of measurements per byte, and a
 "New secret" button. There is no encrypt/decrypt — the demo is about how a comparison
 leaks, not about a cipher.
 

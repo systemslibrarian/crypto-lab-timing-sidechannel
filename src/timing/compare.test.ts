@@ -3,6 +3,7 @@ import {
   bytesExaminedConstant,
   bytesExaminedVulnerable,
   constantTimeCompare,
+  guessWithMatchedPrefix,
   sharedPrefixLength,
   vulnerableCompare
 } from "./compare";
@@ -71,5 +72,24 @@ describe("the leak is real and the defense is flat (timer-free proxy)", () => {
   it("differing lengths fail fast in the vulnerable path", () => {
     expect(vulnerableCompare("secret", "secretX")).toBe(false);
     expect(bytesExaminedVulnerable("secret", "secretX")).toBe(0);
+  });
+});
+
+describe("guessWithMatchedPrefix (prefix sweep helper)", () => {
+  const secret = "open-sesame-1234";
+
+  it("produces a guess that matches exactly N leading characters", () => {
+    for (let n = 0; n <= secret.length; n += 1) {
+      const guess = guessWithMatchedPrefix(secret, n);
+      expect(guess).toHaveLength(secret.length);
+      expect(sharedPrefixLength(secret, guess)).toBe(n);
+      // and that maps to a strictly increasing examined-byte count up to the last byte
+      expect(bytesExaminedVulnerable(secret, guess)).toBe(n >= secret.length ? secret.length : n + 1);
+    }
+  });
+
+  it("returns the secret itself for a full match", () => {
+    expect(guessWithMatchedPrefix(secret, secret.length)).toBe(secret);
+    expect(vulnerableCompare(secret, guessWithMatchedPrefix(secret, secret.length))).toBe(true);
   });
 });

@@ -214,6 +214,153 @@ function displayChar(ch: string): string {
 }
 
 /* ------------------------------------------------------------------ *
+ * Line chart — the prefix-sweep "leak shape"
+ * ------------------------------------------------------------------ */
+
+export interface LinePoint {
+  x: number;
+  y: number;
+}
+
+export interface LineSeries {
+  label: string;
+  color: string;
+  points: LinePoint[];
+}
+
+function niceTicks(min: number, max: number, count: number): number[] {
+  const span = max - min;
+  if (span <= 0) {
+    return [min];
+  }
+  const rawStep = span / count;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const normalized = rawStep / magnitude;
+  const step = (normalized >= 5 ? 5 : normalized >= 2 ? 2 : 1) * magnitude;
+  const ticks: number[] = [];
+  const start = Math.ceil(min / step) * step;
+  for (let value = start; value <= max + step * 0.5; value += step) {
+    ticks.push(value);
+  }
+  return ticks;
+}
+
+function formatMs(value: number): string {
+  const abs = Math.abs(value);
+  if (abs === 0) return "0";
+  if (abs < 0.001) return value.toExponential(1);
+  if (abs < 1) return value.toFixed(4);
+  return value.toFixed(2);
+}
+
+/**
+ * Two (or more) lines sharing an x-axis (matching-prefix length) and a y-axis
+ * (time, ms). The teaching payload: the vulnerable line climbs with the prefix
+ * while the constant-time line stays flat. A legend names each series.
+ */
+export function renderLineChart(canvas: HTMLCanvasElement, series: LineSeries[], title: string): void {
+  const { ctx, width, height, palette } = setupCanvas(canvas);
+
+  ctx.fillStyle = palette.surface;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = palette.text;
+  ctx.font = TITLE_FONT;
+  ctx.fillText(title, 12, 16);
+
+  // legend
+  ctx.font = LABEL_FONT;
+  ctx.textBaseline = "middle";
+  let lx = 12;
+  for (const line of series) {
+    ctx.fillStyle = line.color;
+    ctx.fillRect(lx, 28, 11, 11);
+    ctx.fillStyle = palette.muted;
+    ctx.fillText(line.label, lx + 16, 34);
+    lx += 28 + ctx.measureText(line.label).width;
+  }
+  ctx.textBaseline = "alphabetic";
+
+  const left = 52;
+  const right = width - 16;
+  const top = 48;
+  const bottom = height - 30;
+
+  const xs = series.flatMap((l) => l.points.map((p) => p.x));
+  const ys = series.flatMap((l) => l.points.map((p) => p.y));
+  if (xs.length === 0) {
+    ctx.fillStyle = palette.muted;
+    ctx.fillText("Run the sweep to populate this chart.", 12, top + 16);
+    return;
+  }
+  const minX = Math.min(...xs, 0);
+  const maxX = Math.max(...xs, 1);
+  const minY = Math.min(...ys, 0);
+  const maxY = Math.max(...ys, 1e-3);
+  const spanX = Math.max(1, maxX - minX);
+  const spanY = Math.max(1e-6, maxY - minY);
+
+  // y gridlines
+  ctx.font = LABEL_FONT;
+  ctx.textBaseline = "middle";
+  for (const tick of niceTicks(minY, maxY, 4)) {
+    const y = bottom - ((tick - minY) / spanY) * (bottom - top);
+    ctx.strokeStyle = palette.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(right, y);
+    ctx.stroke();
+    ctx.fillStyle = palette.muted;
+    ctx.textAlign = "right";
+    ctx.fillText(formatMs(tick), left - 6, y);
+  }
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  // axes
+  ctx.strokeStyle = palette.axis;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(left, top);
+  ctx.lineTo(left, bottom);
+  ctx.lineTo(right, bottom);
+  ctx.stroke();
+
+  for (const line of series) {
+    ctx.strokeStyle = line.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    line.points.forEach((p, index) => {
+      const x = left + ((p.x - minX) / spanX) * (right - left);
+      const y = bottom - ((p.y - minY) / spanY) * (bottom - top);
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    for (const p of line.points) {
+      const x = left + ((p.x - minX) / spanX) * (right - left);
+      const y = bottom - ((p.y - minY) / spanY) * (bottom - top);
+      ctx.fillStyle = line.color;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // x ticks
+  ctx.fillStyle = palette.muted;
+  ctx.font = LABEL_FONT;
+  ctx.textAlign = "center";
+  for (const xv of Array.from(new Set(xs)).sort((a, b) => a - b)) {
+    const x = left + ((xv - minX) / spanX) * (right - left);
+    ctx.fillText(String(xv), x, bottom + 14);
+  }
+  ctx.fillText("matching prefix length →", (left + right) / 2, height - 4);
+  ctx.textAlign = "left";
+}
+
+/* ------------------------------------------------------------------ *
  * Accessible data table
  * ------------------------------------------------------------------ */
 
