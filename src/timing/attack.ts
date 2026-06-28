@@ -46,49 +46,84 @@ export function defaultAttackOptions(alphabet: string): AttackOptions {
 }
 
 /**
- * Score every candidate for one position, sorted by cost descending (winner
- * first). Candidates are measured INTERLEAVED across rounds — every candidate
- * gets one measurement before any gets its second — so slow machine drift over
- * the sweep cancels out instead of advantaging the candidates measured later.
- * Each candidate's cost is the trimmed mean of its rounds, which discards the GC
- * spikes a plain mean would let through.
+ * A resumable probe of a single secret position. The caller drives it one
+ * interleaved {@link round} at a time — every candidate is measured once per
+ * round, so machine drift across the sweep cancels instead of biasing whoever is
+ * measured last — and can read the current {@link score} between rounds to
+ * animate the estimate converging. The per-candidate cost is the MINIMUM batch
+ * time observed: timing noise here is one-sided (GC, scheduling and contention
+ * only ever ADD time), so the fastest run is the cleanest estimate of intrinsic
+ * compute, and the correct character — which does one byte more work — keeps the
+ * highest minimum even before the noise fully averages out.
  */
+export interface PositionProbe {
+  /** Target number of rounds (== samplesPerCandidate). */
+  readonly rounds: number;
+  /** Rounds completed so far. */
+  completed(): number;
+  /** Total oracle.measure() calls this probe has made. */
+  measurements(): number;
+  /** Run one interleaved round (one measurement of every candidate). */
+  round(): void;
+  /** Current best-estimate scores from the rounds run so far, sorted winner-first. */
+  score(): CandidateScore[];
+}
+
+export function probePosition(
+  oracle: Oracle,
+  recovered: string,
+  position: number,
+  opts: AttackOptions
+): PositionProbe {
+  const tail = opts.filler.repeat(Math.max(0, oracle.length - position - 1));
+  const alphabet = opts.alphabet;
+  const guesses = Array.from(alphabet, (ch) => recovered + ch + tail);
+  // Track each candidate's running minimum so score() is O(alphabet), not O(samples).
+  const best = new Float64Array(alphabet.length).fill(Number.POSITIVE_INFINITY);
+  let done = 0;
+  let measurements = 0;
+
+  return {
+    rounds: opts.samplesPerCandidate,
+    completed: () => done,
+    measurements: () => measurements,
+    round(): void {
+      for (let i = 0; i < alphabet.length; i += 1) {
+        const cost = oracle.measure(guesses[i]);
+        if (cost < best[i]) {
+          best[i] = cost;
+        }
+        measurements += 1;
+      }
+      done += 1;
+    },
+    score(): CandidateScore[] {
+      const scores: CandidateScore[] = Array.from(alphabet, (ch, i) => ({
+        char: ch,
+        cost: Number.isFinite(best[i]) ? best[i] : 0
+      }));
+      scores.sort((a, b) => b.cost - a.cost);
+      return scores;
+    }
+  };
+}
+
+/** Run a probe to completion and return its final scores + measurement count. */
 function scorePosition(
   oracle: Oracle,
   recovered: string,
   position: number,
   opts: AttackOptions
 ): { scores: CandidateScore[]; measurements: number } {
-  const tailLength = oracle.length - position - 1;
-  const tail = opts.filler.repeat(Math.max(0, tailLength));
-  const alphabet = opts.alphabet;
-  const guesses = Array.from(alphabet, (ch) => recovered + ch + tail);
-  const samples: number[][] = Array.from(alphabet, () => []);
-  let measurements = 0;
-
-  for (let round = 0; round < opts.samplesPerCandidate; round += 1) {
-    for (let i = 0; i < alphabet.length; i += 1) {
-      samples[i].push(oracle.measure(guesses[i]));
-      measurements += 1;
-    }
+  const probe = probePosition(oracle, recovered, position, opts);
+  while (probe.completed() < probe.rounds) {
+    probe.round();
   }
-
-  // Use the MINIMUM batch time per candidate, not the mean. Timing noise here is
-  // one-sided — GC, scheduling and contention only ever ADD time — so the fastest
-  // observed batch is the cleanest estimate of a candidate's intrinsic compute.
-  // The correct character intrinsically does one byte more work, so even its
-  // least-interrupted run is slower than the wrong candidates' least-interrupted
-  // runs. Taking the min filters the additive noise a mean would average in.
-  const scores: CandidateScore[] = Array.from(alphabet, (ch, i) => ({
-    char: ch,
-    cost: Math.min(...samples[i])
-  }));
-
-  scores.sort((a, b) => b.cost - a.cost);
-  return { scores, measurements };
+  return { scores: probe.score(), measurements: probe.measurements() };
 }
 
-function buildStep(
+/** Turn a position's scores into an {@link AttackStep}. Exported so a UI can build steps as it animates. */
+export function makeStep(
   scores: CandidateScore[],
   position: number,
   recovered: string,
@@ -128,7 +163,7 @@ export function* attackSteps(oracle: Oracle, opts: AttackOptions): Generator<Att
   for (let position = 0; position < oracle.length; position += 1) {
     const { scores, measurements: used } = scorePosition(oracle, recovered, position, opts);
     measurements += used;
-    const step = buildStep(scores, position, recovered, measurements, opts.confidenceThreshold);
+    const step = makeStep(scores, position, recovered, measurements, opts.confidenceThreshold);
     recovered = step.recovered;
     yield step;
   }

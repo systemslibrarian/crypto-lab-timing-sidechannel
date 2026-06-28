@@ -6,8 +6,9 @@
  */
 
 import {
-  attackSteps,
   defaultAttackOptions,
+  makeStep,
+  probePosition,
   type AttackOptions
 } from "./timing/attack";
 import {
@@ -185,6 +186,10 @@ function renderAppShell(): void {
           <div id="s3-slots" class="slots" role="img" aria-label="Recovered characters"></div>
         </div>
 
+        <div id="s3-progress" class="progress" role="progressbar" aria-label="Attack progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="s3-progress-fill" class="progress-fill"></div>
+        </div>
+
         <p id="s3-status" class="chart-summary" aria-live="polite"></p>
         <canvas id="s3-canvas" aria-label="Timing cost per candidate character at the current position" role="img"></canvas>
         <div id="s3-verdict" class="verdict" role="status" aria-live="polite"></div>
@@ -319,6 +324,14 @@ function wireAttackPanel(): void {
     return (document.querySelector('input[name="channel"]:checked') as HTMLInputElement).value as Channel;
   }
 
+  const progress = byId<HTMLDivElement>("s3-progress");
+  const progressFill = byId<HTMLDivElement>("s3-progress-fill");
+  function setProgress(fraction: number): void {
+    const pct = Math.round(Math.max(0, Math.min(1, fraction)) * 100);
+    progressFill.style.width = `${pct}%`;
+    progress.setAttribute("aria-valuenow", String(pct));
+  }
+
   function buildSlots(recovered: string, cursor: number): void {
     let html = "";
     for (let i = 0; i < box.length; i += 1) {
@@ -350,6 +363,7 @@ function wireAttackPanel(): void {
     running = false;
     lastStep = null;
     buildSlots("", 0);
+    setProgress(0);
     status.textContent = `Ready. A ${box.length}-character secret is loaded and hidden. Choose a target and launch the attack.`;
     drawStep(null);
     byId<HTMLDivElement>("s3-verdict").className = "verdict";
@@ -408,33 +422,59 @@ function wireAttackPanel(): void {
     const oracle = makeOracle(box.reveal(), channel, defense, EFFORT_LEVELS[level]);
 
     const steps: AttackStep[] = [];
-    const delay = prefersReducedMotion() ? 0 : 90;
+    const reduced = prefersReducedMotion();
+    const delay = reduced ? 0 : 70;
+    let recovered = "";
+    let measured = 0;
     buildSlots("", 0);
+    setProgress(0);
     await nextFrame();
 
-    const gen = attackSteps(oracle, opts);
-    let result = gen.next();
-    while (!result.done) {
+    for (let position = 0; position < oracle.length; position += 1) {
       if (token !== runToken) {
         return; // aborted by reset / regen / new launch
       }
-      const step = result.value;
+      buildSlots(recovered, position);
+      const probe = probePosition(oracle, recovered, position, opts);
+      // Run the interleaved rounds, yielding to the browser periodically so the
+      // page stays responsive AND the chart animates the estimate converging as
+      // measurements accumulate — the "average out the noise" idea, made visible.
+      const yieldEvery = 3; // yield for responsiveness regardless of motion preference
+      while (probe.completed() < probe.rounds) {
+        if (token !== runToken) {
+          return;
+        }
+        probe.round();
+        if (probe.completed() % yieldEvery === 0 || probe.completed() === probe.rounds) {
+          const partial = probe.score();
+          drawStep(makeStep(partial, position, recovered, measured + probe.measurements(), opts.confidenceThreshold));
+          status.textContent =
+            `Position ${position + 1}/${oracle.length}: ${probe.completed()}/${probe.rounds} rounds, ` +
+            `${(measured + probe.measurements()).toLocaleString()} measurements. Watching the bars settle…`;
+          await nextFrame();
+        }
+      }
+
+      measured += probe.measurements();
+      const step = makeStep(probe.score(), position, recovered, measured, opts.confidenceThreshold);
       steps.push(step);
       lastStep = step;
-      buildSlots(step.recovered, step.position + 1);
+      recovered = step.recovered;
+      buildSlots(recovered, position + 1);
       drawStep(step);
-      const conf = step.lowConfidence ? "low confidence" : `${step.margin === Infinity ? "∞" : step.margin.toFixed(1)}σ above field`;
+      setProgress((position + 1) / oracle.length);
+      const conf = step.lowConfidence
+        ? "low confidence"
+        : `${Number.isFinite(step.margin) ? step.margin.toFixed(1) : "∞"}σ above the field`;
       status.textContent =
-        `Position ${step.position + 1}/${box.length} → “${step.best === " " ? "␣" : step.best}” (${conf}). ` +
-        `${step.measurements.toLocaleString()} timing measurements so far.`;
+        `Position ${position + 1}/${oracle.length} → “${step.best === " " ? "␣" : step.best}” (${conf}). ` +
+        `${measured.toLocaleString()} timing measurements so far.`;
       await nextFrame();
       if (delay > 0) {
         await new Promise((r) => setTimeout(r, delay));
       }
-      result = gen.next();
     }
 
-    const recovered = steps.length ? steps[steps.length - 1].recovered : "";
     buildTable(steps);
     renderReveal(recovered);
     setVerdict("s3-verdict", attackVerdict(recovered, box.reveal(), defense, channel));
