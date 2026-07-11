@@ -8,6 +8,11 @@ dist/
 .vite/
 *.tsbuildinfo
 
+# Playwright (e2e / a11y gate)
+/test-results/
+/playwright-report/
+/.pw-browsers/
+
 # Logs and OS cruft
 *.log
 npm-debug.log*

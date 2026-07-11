@@ -10,10 +10,13 @@
     "lint": "eslint \"src/**/*.ts\" vite.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:a11y": "playwright test",
     "deploy": "npm run build && gh-pages -d dist"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
     "axe-core": "^4.12.1",
     "eslint": "^10.5.0",
     "gh-pages": "^6.1.1",
