@@ -114,16 +114,16 @@ function renderAppShell(): void {
   const app = byId<HTMLDivElement>("app");
   app.innerHTML = `
     <a class="skip-link" href="#main-content">Skip to main content</a>
-    <header class="hero" role="banner" aria-label="Demo header">
-      <div class="category-chip">Side-Channel Attacks</div>
-      <h1>Timing Side-Channel</h1>
-      <p class="subtitle">Watch a secret get pulled out of pure timing — one byte at a time — from a comparison that exits early. Real <code>performance.now()</code> measurements, no backend.</p>
-      <div class="chip-row">
-        <span class="primitive-chip">Timing Attack</span>
-        <span class="primitive-chip">Constant-Time</span>
-        <span class="primitive-chip">Secret Recovery</span>
-        <span class="primitive-chip">performance.now()</span>
+    <header class="cl-hero">
+      <div class="cl-hero-main">
+        <h1 class="cl-hero-title">Timing Side-Channel</h1>
+        <p class="cl-hero-sub">Side-Channel Attack · Constant-Time Comparison</p>
+        <p class="cl-hero-desc">Recover a hidden secret one byte at a time from an early-exit comparison using live <code>performance.now()</code> timings, then watch a constant-time comparison flatten the leak.</p>
       </div>
+      <aside class="cl-hero-why" aria-label="Why it matters">
+        <span class="cl-hero-why-label">WHY IT MATTERS</span>
+        <p class="cl-hero-why-text">Non-constant-time comparison of secrets, MACs, and tokens has broken real production systems. Execution time alone can leak a secret with no crash, error, or access to it — which is why constant-time equality is a security requirement, not an optimization.</p>
+      </aside>
     </header>
 
     <main id="main-content" aria-label="Timing side-channel demo">
