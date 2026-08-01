@@ -160,6 +160,13 @@ function renderAppShell(): void {
             <pre tabindex="0" aria-label="Constant-time comparison source"><code>${escapeHtml(CONSTANT_SRC)}</code></pre>
           </figure>
         </div>
+        <p class="panel-note">
+          <strong>What these listings leave out.</strong> They show the load-bearing control flow, which is the whole
+          point of the contrast. The comparators actually timed below wrap each byte in a small real mixing loop, so that
+          examining <em>one</em> byte costs enough to clear this browser's coarse timer when looped. That amplifies the
+          per-byte cost; it does not create the leak. The leak is entirely in <em>how many</em> bytes each version
+          examines, and the sweep's "bytes examined" column is computed from the control flow alone, with no clock.
+        </p>
         <div class="controls two-col">
           <label for="s2-secret">Demo secret (visible here for experimenting)</label>
           <input id="s2-secret" aria-label="Demo secret" value="open-sesame-1234" />
@@ -202,6 +209,11 @@ function renderAppShell(): void {
               <li>That constant-time <em>source</em> is constant-time on the metal — a JS JIT, CPU, or compiler can reintroduce leaks.</li>
               <li>That browser timers match a native attacker's resolution (they're deliberately coarsened post-Spectre).</li>
               <li>That adding random delays is a sound defense — it is not; remove the data dependence instead.</li>
+              <li>That a bare early-exit compare leaks its <em>last</em> byte. It does not: a right and a wrong final
+                character both stop at the full width. This oracle appends a fixed trailing delimiter to the secret and
+                to every guess — as real length-prefixed and framed wire formats do — which gives the correct final
+                character one more byte to extend into. Without that, the attack would recover 11 of 12 characters and
+                have to brute-force the last.</li>
             </ul>
           </div>
         </div>
