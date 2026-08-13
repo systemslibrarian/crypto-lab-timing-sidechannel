@@ -217,6 +217,12 @@ label {
 
 main {
   display: grid;
+  /* WCAG 1.4.10. A `display: grid` with no `grid-template-columns` is an
+     implicit AUTO track, floored at its widest item's min-content — so one wide
+     panel sizes the column for the whole page. Measured at a 380px viewport the
+     document scrolled to 509px. `minmax(0, 1fr)` lets the track be narrower
+     than its content, so panels with their own scrollers actually scroll. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.9rem;
   margin-top: 0.9rem;
 }
@@ -321,8 +327,27 @@ canvas {
 /* Code comparison (Section 2) */
 .code-compare {
   display: grid;
+  /* Implicit `auto` track again: floored at the widest listing's min-content, so
+     the `white-space: pre` source blocks sized the column and the page. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.7rem;
   margin: 0.8rem 0;
+}
+
+/* WCAG 1.4.10. The listings are `white-space: pre`, so they cannot wrap — the
+   only correct answer is to let them scroll. Measured at 380px: a 403px <code>
+   inside a 462px <figure> took the document to 492px. `min-width: 0` is required
+   as well, because a grid item's automatic minimum size is its min-content, so
+   without it the <pre> grows instead of scrolling.
+   The <pre> already carries `tabindex="0"`, which SC 2.1.1 requires of any
+   scrollable region. */
+.code-compare figure {
+  min-width: 0;
+}
+
+.code-compare pre {
+  overflow-x: auto;
+  min-width: 0;
 }
 
 .code-compare figure {

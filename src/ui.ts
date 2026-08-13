@@ -153,11 +153,11 @@ function renderAppShell(): void {
         <div class="code-compare">
           <figure>
             <figcaption class="code-cap bad">Vulnerable — exits on first mismatch</figcaption>
-            <pre tabindex="0" aria-label="Vulnerable comparison source"><code>${escapeHtml(VULNERABLE_SRC)}</code></pre>
+            <pre tabindex="0" role="group" aria-label="Vulnerable comparison source"><code>${escapeHtml(VULNERABLE_SRC)}</code></pre>
           </figure>
           <figure>
             <figcaption class="code-cap good">Constant-time — always full width</figcaption>
-            <pre tabindex="0" aria-label="Constant-time comparison source"><code>${escapeHtml(CONSTANT_SRC)}</code></pre>
+            <pre tabindex="0" role="group" aria-label="Constant-time comparison source"><code>${escapeHtml(CONSTANT_SRC)}</code></pre>
           </figure>
         </div>
         <p class="panel-note">
