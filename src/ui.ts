@@ -242,7 +242,11 @@ function renderAppShell(): void {
           <button id="s3-regen" type="button" class="secondary">New secret</button>
         </div>
 
-        <div class="recovery" aria-label="Recovered secret so far">
+        <!-- role="group" is what makes the aria-label legal: on a bare div
+             (generic role) aria-label is PROHIBITED and screen readers discard
+             it. axe files that under aria-prohibited-attr, in its incomplete
+             bucket, which is one of the buckets the e2e gate asserts empty. -->
+        <div class="recovery" role="group" aria-label="Recovered secret so far">
           <div class="recovery-label">Recovered:</div>
           <div id="s3-slots" class="slots" role="img" aria-label="Recovered characters"></div>
         </div>
@@ -262,7 +266,13 @@ function renderAppShell(): void {
         <h3 class="subhead">Prove it can't be cheating — run all four modes</h3>
         <p class="panel-text">Run the <em>same</em> hidden secret through every combination of target and channel. The attack should fully recover the secret only when the implementation leaks, and the idealised channel should match the live one in shape — confirming it isn't faking the result, just removing the timer noise.</p>
         <button id="s3-board-run" type="button" class="secondary">Run all four modes</button>
-        <div id="s3-board" class="board"></div>
+        <!-- The board's five-column table overflows its overflow-x scroller at
+             phone widths, and a scrollable region with no focusable content
+             needs tabindex="0" to be operable from the keyboard (WCAG 2.1.1;
+             axe scrollable-region-focusable, serious). While empty, the
+             .board:empty display:none rule keeps it out of the tab order, so
+             the stop only exists once there is something to scroll to. -->
+        <div id="s3-board" class="board" tabindex="0" role="region" aria-label="Results of all four target and channel combinations"></div>
       </section>
 
       <section class="why" aria-labelledby="s4-title">
