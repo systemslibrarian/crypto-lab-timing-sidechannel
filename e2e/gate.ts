@@ -295,12 +295,12 @@ export async function boot(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await expect(page.locator('a.skip-link')).toHaveAttribute('href', '#main-content');
   await expect(page.locator('#app')).toHaveCount(1);
 
-  // The one and only theme toggle. The shared bar ships a rule that
-  // display:none's any lab-local toggle; this lab has none, and if one ever
-  // appears it must be hidden in a way that also removes it from the tab
-  // order — asserting "exactly one toggle-shaped control" catches the addition
-  // so that question gets asked.
-  await expect(page.locator('#cl-theme-toggle')).toHaveCount(1);
+  // No theme toggle at all: dark is the only theme, so the shared bar's button
+  // is gone. The bar still ships a rule that display:none's any lab-local
+  // toggle; this lab has none, and if one ever appears it must be hidden in a
+  // way that also removes it from the tab order — asserting "no toggle-shaped
+  // control" catches the addition so that question gets asked.
+  await expect(page.locator('#cl-theme-toggle')).toHaveCount(0);
   expect(
     await page.evaluate(
       () =>
@@ -903,8 +903,6 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await page.locator('.cl-actions a.cl-btn').first().hover();
   await scanAt('the shared bar Menu control hovered');
 
-  await page.locator('#cl-theme-toggle').hover();
-  await scanAt('the shared bar theme toggle hovered');
 
   // ── Focus rings on the controls that take them ──────────────────────────
   await page.locator('#s2-secret').focus();
@@ -917,14 +915,4 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await page.locator('.code-compare pre').first().focus();
   await expect(page.locator('.code-compare pre').first()).toBeFocused();
   await scanAt('a source listing focused — the keyboard route into the scroller at 380px');
-
-  // ── The theme switched IN PLACE, without a reload ───────────────────────
-  // Every other configuration seeds the theme through localStorage before
-  // `goto`, so this is the only state where the page is repainted live — the
-  // canvases redraw through the MutationObserver on `data-theme` — with every
-  // result already on screen.
-  const other = theme.startsWith('dark') ? 'light' : 'dark';
-  await page.click('#cl-theme-toggle');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', other);
-  await scan(page, `${theme} / switched live to ${other} with every result already rendered`);
 }
