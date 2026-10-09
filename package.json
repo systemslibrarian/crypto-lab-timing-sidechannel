@@ -8,10 +8,10 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.ts\" vite.config.ts",
-    "test": "vitest run",
+    "test": "vitest run && node --test tests/publish-request.test.mjs",
     "test:watch": "vitest",
     "test:a11y": "playwright test",
-    "deploy": "npm run build && gh-pages -d dist"
+    "deploy": "gh workflow run deploy.yml --repo systemslibrarian/crypto-lab-timing-sidechannel --ref main"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -19,7 +19,6 @@
     "@playwright/test": "^1.63.0",
     "axe-core": "^4.12.1",
     "eslint": "^10.12.0",
-    "gh-pages": "^6.1.1",
     "globals": "^17.13.0",
     "happy-dom": "^20.14.5",
     "typescript": "^5.6.3",
