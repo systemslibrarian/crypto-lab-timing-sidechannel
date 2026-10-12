@@ -78,13 +78,21 @@ describe("attack verdict semantics (colour tracks integrity, not attacker succes
     expect(v.tone).toBe("leak");
   });
 
-  it("constant-time defeating the attack reads as safe", () => {
+  it("live no-recovery is inconclusive for the constant-work target", () => {
     const v = attackVerdict("xxxxxx", "secret", "constant-time", "live");
-    expect(v.tone).toBe("safe");
+    expect(v.tone).toBe("inconclusive");
   });
 
-  it("partial recovery against a vulnerable target is still a leak", () => {
+  it("live partial matches do not establish measured leakage", () => {
     const v = attackVerdict("secXXX", "secret", "vulnerable", "live");
-    expect(v.tone).toBe("leak");
+    expect(v.tone).toBe("inconclusive");
   });
 });
+
+for (const defense of ["vulnerable", "constant-time"] as const) {
+  for (const recovered of ["", "s", "secXXX", "xxxxxx"]) {
+    it(`insufficient live evidence stays inconclusive: ${defense}/${recovered}`, () => {
+      expect(attackVerdict(recovered,"secret",defense,"live").tone).toBe("inconclusive");
+    });
+  }
+}

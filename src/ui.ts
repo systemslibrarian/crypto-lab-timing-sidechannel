@@ -118,7 +118,7 @@ function renderAppShell(): void {
       <div class="cl-hero-main">
         <h1 class="cl-hero-title">Timing Side-Channel</h1>
         <p class="cl-hero-sub">Side-Channel Attack · Constant-Time Comparison</p>
-        <p class="cl-hero-desc">Recover a hidden secret one byte at a time from an early-exit comparison using live <code>performance.now()</code> timings, then watch a constant-time comparison flatten the leak.</p>
+        <p class="cl-hero-desc">Recover a hidden secret one byte at a time from an early-exit comparison using live <code>performance.now()</code> timings, then compare it with a constant-work source pattern.</p>
       </div>
       <aside class="cl-hero-why" aria-label="Why it matters">
         <span class="cl-hero-why-label">WHY IT MATTERS</span>
@@ -146,10 +146,10 @@ function renderAppShell(): void {
           <h2 id="s2-title">2 · Vulnerable vs constant-time</h2>
           <div class="status-row">
             <span class="status bad">Early-exit: leaks</span>
-            <span class="status good">Constant-time: safe</span>
+            <span class="status good">Constant-work source pattern</span>
           </div>
         </div>
-        <p class="panel-text">The same comparison, two ways. Pick a demo secret and a guess, then measure both. The constant-time version is flat no matter how much of your guess is correct; the vulnerable one is not.</p>
+        <p class="panel-text">The same comparison, two ways. Pick a demo secret and a guess, then measure both. The constant-work source scans the full width. Actual browser timings may vary; a flat measurement does not prove safety.</p>
         <div class="code-compare">
           <figure>
             <figcaption class="code-cap bad">Vulnerable — exits on first mismatch</figcaption>
@@ -178,7 +178,7 @@ function renderAppShell(): void {
         <div id="s2-verdict" class="verdict" role="status" aria-live="polite"></div>
 
         <h3 class="subhead">The leak has a shape</h3>
-        <p class="panel-text">Sweep every matching-prefix length from 0 to full and plot how long each implementation takes. The vulnerable line climbs one step per correct character; the constant-time line is flat. That rising curve is the whole attack in one picture — before you extract a single byte.</p>
+        <p class="panel-text">Sweep every matching-prefix length from 0 to full and plot how long each implementation takes. The ideal counted-cost model predicts a rising early-exit curve and equal constant-work costs; live measurements may be noisy. That rising curve is the whole attack in one picture — before you extract a single byte.</p>
         <button id="s2-sweep" type="button">Sweep all prefix lengths</button>
         <canvas id="s2-sweep-canvas" aria-label="Timing vs matching prefix length for vulnerable and constant-time comparison" role="img"></canvas>
         <p id="s2-sweep-summary" class="chart-summary" aria-live="polite"></p>
@@ -200,7 +200,7 @@ function renderAppShell(): void {
             <ul>
               <li>An early-exit comparison leaks how many leading bytes of a guess are correct.</li>
               <li>Repeated timing measurements alone can recover a full secret — no access to the secret or to any pass/fail result.</li>
-              <li>A constant-time comparison removes the signal: the same attack drops to chance.</li>
+              <li>The ideal constant-work model removes prefix-dependent counted cost; this does not certify browser timing behavior.</li>
             </ul>
           </div>
           <div class="proof-col disproves">
@@ -276,7 +276,7 @@ function renderAppShell(): void {
       </section>
 
       <section class="why" aria-labelledby="s4-title">
-        <h2 id="s4-title">4 · Why constant-time is hard</h2>
+        <h2 id="s4-title">4 · Why constant-time is hard</h2><p class="panel-note"><a href="https://www.hertzbleed.com/">Hertzbleed (2022)</a> and <a href="https://gofetch.fail/">GoFetch (2024)</a> illustrate hardware channels beyond a source-level constant-work model. They are not reproduced against this browser demo.</p>
         <ul class="rules">
           <li><strong>The compiler fights you.</strong> An optimizer can reintroduce a branch or short-circuit you wrote constant-time, or hoist a secret-dependent check.</li>
           <li><strong>The hardware fights you.</strong> Caches, branch predictors, and variable-latency instructions (division, multiplication on some cores) make “the same code” take secret-dependent time.</li>
@@ -358,7 +358,7 @@ function wireComparePanel(): void {
         label: faster ? "Vulnerable path ran faster" : "Vulnerable path ran slower",
         detail: faster
           ? `It bailed out after ${matched} of ${secret.length} characters instead of scanning the full width. Raise the matching prefix and its time climbs toward the constant-time line — that dependence on the prefix is the leak.`
-          : `With ${matched} of ${secret.length} characters matching, the early-exit comparator scanned almost the whole secret. The constant-time line never moves with the prefix; the vulnerable one does — sweep below to see it.`
+          : `With ${matched} of ${secret.length} characters matching, the early-exit comparator scanned almost the whole secret. The source patterns differ in prefix-dependent work; sweep below to inspect the measured timings.`
       });
     } else {
       setVerdict("s2-verdict", {
@@ -708,7 +708,7 @@ function wireAttackPanel(): void {
             : `<span class="board-score">${r.score}/${r.total}</span>`;
           const rec = r.pending || r.recovered === null ? "—" : `<code>${escapeHtml(r.recovered)}</code>`;
           const time = r.pending ? "" : `${r.ms.toFixed(0)} ms`;
-          const tag = r.pending ? "" : r.tone === "leak" ? "⚠ leak" : r.tone === "safe" ? "✓ safe" : "• noisy";
+          const tag = r.pending ? "" : r.tone === "leak" ? "⚠ leak" : r.tone === "safe" ? "✓ model result" : "• inconclusive";
           return `<tr class="board-row board-${r.pending ? "pending" : r.tone}"><th scope="row">${r.label}</th><td>${rec}</td><td>${status}</td><td>${time}</td><td>${tag}</td></tr>`;
         })
         .join("");

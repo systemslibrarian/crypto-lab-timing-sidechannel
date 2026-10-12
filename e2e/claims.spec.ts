@@ -247,17 +247,17 @@ test('against the constant-time comparator the same attack fails, and says the d
   expect(matches).toBe(score);
 
   const verdict = page.locator('#s3-verdict');
-  await expect(verdict).toHaveClass(/verdict--safe/);
-  await expect(verdict).toContainText('Attack failed — constant-time held');
-  await expect(verdict).toContainText(`Only ${score}/${SECRET_LENGTH} characters happened to match`);
-  await expect(verdict).toContainText('timing reveals nothing');
+  await expect(verdict).toHaveClass(/verdict--inconclusive/);
+  await expect(verdict).toContainText('No full recovery observed — insufficient evidence');
+  await expect(verdict).toContainText(`${score}/${SECRET_LENGTH} characters match in this run`);
+  await expect(verdict).toContainText('ideal constant-work model assigns equal counted cost');
 
   // Every position was a coin flip, and the page admits it rather than
   // presenting a guess as a read.
   await expect(page.locator('#s3-why .lowconf')).toBeVisible();
 });
 
-test('the live channel leaks too — whatever it recovers, the verdict matches the score', async ({ page }) => {
+test('the live verdict reports recovery or insufficient evidence', async ({ page }) => {
   test.setTimeout(240_000);
   await configure(page, 'vulnerable', 'live');
   await launchAndSettle(page, 180_000);
@@ -270,14 +270,15 @@ test('the live channel leaks too — whatever it recovers, the verdict matches t
   const verdict = page.locator('#s3-verdict');
   // Inverted semantics: a recovered secret is a defender's catastrophe, so a
   // vulnerable target is never allowed to read as "safe".
-  await expect(verdict).toHaveClass(/verdict--leak/);
   if (score === SECRET_LENGTH) {
+    await expect(verdict).toHaveClass(/verdict--leak/);
     expect(recovered).toBe(actual);
     await expect(verdict).toContainText('Secret fully recovered');
     await expect(verdict).toContainText('live performance.now() timing alone');
   } else {
-    await expect(verdict).toContainText(`Partial recovery — ${score}/${SECRET_LENGTH} characters`);
-    await expect(verdict).toContainText('The leak is real');
+    await expect(verdict).toHaveClass(/verdict--inconclusive/);
+    await expect(verdict).toContainText(`${score}/${SECRET_LENGTH} characters match in this run`);
+    await expect(verdict).toContainText('does not establish measured leakage');
   }
 });
 
@@ -321,7 +322,7 @@ test('the four-mode board wins only where the implementation leaks', async ({ pa
 
   expect(numOf(rows[2][2])).toBeLessThan(SECRET_LENGTH);
   expect(rows[2][1]).not.toBe(actual);
-  expect(rows[2][4]).toContain('safe');
+  expect(rows[2][4]).toContain('inconclusive');
 
   // And the live constant-time row must never claim a win either.
   expect(numOf(rows[3][2])).toBeLessThan(SECRET_LENGTH);
