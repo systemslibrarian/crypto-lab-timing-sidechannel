@@ -861,7 +861,7 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await runGuarded(page, '#s3-run');
   await expect(page.locator('#s3-verdict')).not.toBeEmpty({ timeout: 180_000 });
   await expect(page.locator('#s3-run')).toBeEnabled({ timeout: 180_000 });
-  await expect(page.locator('#s3-verdict')).toContainText('Attack failed — constant-time held');
+  await expect(page.locator('#s3-verdict')).toContainText('No full recovery observed — insufficient evidence');
   await expect(page.locator('#s3-why .lowconf')).toBeVisible();
   await scanAt('the defense held: safe verdict, red diff cells, low-confidence admission');
 

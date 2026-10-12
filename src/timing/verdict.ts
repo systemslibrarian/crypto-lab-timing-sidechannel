@@ -1,15 +1,4 @@
-/**
- * Turns an attack outcome into a plain-language verdict.
- *
- * Inverted semantics (important): colour tracks SYSTEM INTEGRITY, not the
- * attacker's success. A fully recovered secret is a catastrophe for the
- * defender, so it reads as an ALARM (`leak`), never a green "success". The
- * constant-time oracle *defeating* the attack is the genuinely good outcome
- * (`safe`). Every verdict pairs an icon + text + colour so meaning survives
- * grayscale and colour-blindness (WCAG 1.4.1).
- */
-
-import { sharedPrefixLength } from "./compare";
+/** Report the observed outcome; failure to recover is not a safety proof. */
 import type { Channel, Defense } from "./types";
 
 export type VerdictTone = "leak" | "safe" | "inconclusive";
@@ -40,7 +29,6 @@ export function attackVerdict(
 ): Verdict {
   const total = actual.length;
   const correct = correctCharacters(recovered, actual);
-  const prefix = sharedPrefixLength(recovered, actual);
   const channelNote =
     channel === "live"
       ? "from live performance.now() timing alone"
@@ -50,22 +38,13 @@ export function attackVerdict(
     return {
       tone: "leak",
       label: "Secret fully recovered",
-      detail: `All ${total} characters were extracted ${channelNote} — the secret was never compared directly, only timed. An early-exit comparison hands the whole secret to an attacker one byte at a time.`
+      detail: `All ${total} characters were extracted ${channelNote} — the secret was never compared directly, only timed. This run recovered the secret; the result alone does not establish a universal attack success rate.`
     };
   }
 
-  if (defense === "constant-time") {
-    return {
-      tone: "safe",
-      label: "Attack failed — constant-time held",
-      detail: `Only ${correct}/${total} characters happened to match (≈ chance for this alphabet). With no early exit, every candidate costs the same, so timing reveals nothing. This is the defense working.`
-    };
-  }
-
-  // Vulnerable but not perfect: still a leak, just noisier this run.
   return {
-    tone: "leak",
-    label: `Partial recovery — ${correct}/${total} characters`,
-    detail: `The first ${prefix} character${prefix === 1 ? "" : "s"} fell cleanly; timer noise derailed the rest this run. The leak is real — raise measurements per byte or use the idealised channel and it recovers in full. Statistically the secret is still exploitable.`
+    tone: "inconclusive",
+    label: "No full recovery observed — insufficient evidence",
+    detail: `${correct}/${total} characters match in this run. A partial match may occur by chance and does not establish measured leakage. ${channel === "ideal" ? (defense === "constant-time" ? "The ideal constant-work model assigns equal counted cost to candidates; this is not a browser timing guarantee." : "The ideal early-exit model has a source-known variable cost; this incomplete run alone does not establish recovery.") : "Live wall-clock results do not prove the absence of timing leakage, regardless of the selected source pattern."}`
   };
 }
