@@ -44,6 +44,12 @@ target implementation, the timing channel, the number of measurements per byte, 
 "New secret" button. There is no encrypt/decrypt — the demo is about how a comparison
 leaks, not about a cipher.
 
+## Key lifecycle walkthrough
+
+After “Why constant-time is hard,” a four-stage prediction/reveal exercise follows private-key decoding/import, the primitive, encoding/export, and error handling. It distinguishes repeated observations of the same fixed encoded length from disclosure of additional secret bits.
+
+Source: Billy Bob Brumley, [SoK: The Constant Time Model](https://www.usenix.org/conference/woot26/presentation/brumley), WOOT 2026 (August). The paper’s key-loading result motivates the boundary; the walkthrough is conceptual, not an implementation of its attack or evidence of key recovery or a browser vulnerability.
+
 ## How the Demo Is Constructed
 
 Two choices shape what "recovered from timing alone" means here, and the page states
