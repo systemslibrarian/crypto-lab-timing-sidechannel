@@ -284,7 +284,7 @@ export async function boot(page: Page, theme: 'dark' | 'light'): Promise<void> {
 
   // ── The page really rendered ────────────────────────────────────────────
   await expect(page.locator('main#main-content')).toHaveCount(1);
-  await expect(page.locator('#app main > section')).toHaveCount(5);
+  await expect(page.locator('#app main > section')).toHaveCount(6);
 
   // Both skip links exist and point at ids that exist. axe's skip-link rule is
   // best-practice, not WCAG-tagged, so `withTags` never runs it — a skip link
@@ -332,9 +332,10 @@ export async function boot(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await expect(page.locator(empty)).toBeEmpty();
   }
 
-  // ── Two disclosures, both shut ──────────────────────────────────────────
+  // ── Two original and five lifecycle disclosures, all shut ──────────────────────────────────────────
   // The gate this replaces opened both from script before its only scan.
-  await expect(page.locator('#app details')).toHaveCount(2);
+  await expect(page.locator('#app details')).toHaveCount(7);
+  await expect(page.locator('section[aria-labelledby="key-lifecycle"] details')).toHaveCount(5);
   await expect(page.locator('#app details[open]')).toHaveCount(0);
 
   await settle(page);

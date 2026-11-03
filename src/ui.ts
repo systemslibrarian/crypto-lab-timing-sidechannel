@@ -286,6 +286,41 @@ function renderAppShell(): void {
         <p class="panel-note">This is why constant-time code is written against the machine, tested with tools (dudect, ctgrind, TIMECOP), and—where possible—handed to vetted primitives instead of hand-rolled.</p>
       </section>
 
+      <section class="panel" aria-labelledby="key-lifecycle">
+        <h2 id="key-lifecycle">Follow the key beyond the primitive</h2>
+        <p class="panel-text">A constant-time signing routine covers only one part of a key’s journey.
+          Before opening each stage, ask: could its observable work depend on secret data?</p>
+        <ol class="rules" aria-label="Key lifecycle review">
+          <li><details><summary>1. Decode and import the private key</summary>
+            <p>A parser may do different amounts of work for different private-integer encodings.
+              A constant-time signing routine cannot undo information leaked before it starts.</p>
+          </details></li>
+          <li><details><summary>2. Run the cryptographic operation</summary>
+            <p>Check secret-dependent branches, memory addresses, and instruction behavior under
+              the actual compiler and processor model. The comparator above demonstrates only
+              one source-level pattern.</p>
+          </details></li>
+          <li><details><summary>3. Encode and export</summary>
+            <p>Review conversion and serialization of secret values as well as the main operation.
+              Decide which lengths and outputs the protocol deliberately makes public.</p>
+          </details></li>
+          <li><details><summary>4. Handle errors and cleanup</summary>
+            <p>Different failure paths can reveal which checks succeeded. Assess the observable
+              response, including timing, across the complete operation.</p>
+          </details></li>
+        </ol>
+        <details class="chart-data"><summary>Check your prediction: does repeated measurement reveal new bits?</summary>
+          <p>Not necessarily. Repeating a measurement of one fixed encoded length can make that
+            length easier to identify; it does not automatically expose additional secret bits
+            or recover the key. The information leaked and the number of observations are different quantities.</p>
+        </details>
+        <p class="panel-note">Source: Billy Bob Brumley,
+          <a href="https://www.usenix.org/conference/woot26/presentation/brumley">SoK: The Constant Time Model</a>
+          (WOOT 2026, August). Its private-key-loading result motivates this broader review boundary.
+          This is a conceptual walkthrough; it does not reproduce that attack, demonstrate key
+          recovery, or establish a vulnerability in this browser demo.</p>
+      </section>
+
       <section class="panel" aria-labelledby="s5-title">
         <h2 id="s5-title">5 · Defenses &amp; best practices</h2>
         <ol class="rules" aria-label="Constant-time defense checklist">
