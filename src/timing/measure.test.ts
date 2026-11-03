@@ -20,6 +20,25 @@ describe("secret generation", () => {
     expect(() => generateSecret("", 4)).toThrow();
   });
 
+  it("rejects alphabets too large for its one-byte rejection sampler", () => {
+    expect(() => generateSecret("a".repeat(257), 4)).toThrow(/at most 256/);
+  });
+
+  it("rejects lengths that cannot terminate predictably", () => {
+    for (const length of [-1, 1.5, Number.POSITIVE_INFINITY, Number.NaN]) {
+      expect(() => generateSecret(DEFAULT_ALPHABET, length)).toThrow(/non-negative safe integer/);
+    }
+  });
+
+  it("treats each Unicode code point as one alphabet character", () => {
+    const alphabet = "🔐🔑";
+    const secret = generateSecret(alphabet, 8);
+    expect(Array.from(secret)).toHaveLength(8);
+    for (const ch of secret) {
+      expect(alphabet).toContain(ch);
+    }
+  });
+
   it("is not constant across draws", () => {
     const a = generateSecret(DEFAULT_ALPHABET, 24);
     const b = generateSecret(DEFAULT_ALPHABET, 24);

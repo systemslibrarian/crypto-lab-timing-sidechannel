@@ -46,17 +46,24 @@ const SENTINEL = "\u0001";
 
 /** Pick `length` characters from `alphabet` using rejection sampling for an unbiased draw. */
 export function generateSecret(alphabet: string, length: number): string {
-  if (alphabet.length === 0) {
+  const symbols = Array.from(alphabet);
+  if (symbols.length === 0) {
     throw new Error("alphabet must be non-empty");
   }
+  if (symbols.length > 256) {
+    throw new RangeError("alphabet must contain at most 256 characters");
+  }
+  if (!Number.isSafeInteger(length) || length < 0) {
+    throw new RangeError("length must be a non-negative safe integer");
+  }
   const out: string[] = [];
-  const max = Math.floor(256 / alphabet.length) * alphabet.length; // reject above this to avoid modulo bias
+  const max = Math.floor(256 / symbols.length) * symbols.length; // reject above this to avoid modulo bias
   const buffer = new Uint8Array(1);
   while (out.length < length) {
     crypto.getRandomValues(buffer);
     const byte = buffer[0];
     if (byte < max) {
-      out.push(alphabet[byte % alphabet.length]);
+      out.push(symbols[byte % symbols.length]);
     }
   }
   return out.join("");

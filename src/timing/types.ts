@@ -45,7 +45,7 @@ export interface SecretBox {
 /** One candidate character and its measured cost at a single secret position. */
 export interface CandidateScore {
   char: string;
-  /** Median cost over the samples taken for this candidate. */
+  /** Minimum cost over the samples taken for this candidate. */
   cost: number;
 }
 

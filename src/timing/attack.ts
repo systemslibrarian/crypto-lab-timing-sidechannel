@@ -23,8 +23,8 @@ export interface AttackOptions {
   /**
    * Number of interleaved rounds. Each round takes ONE measurement of every
    * candidate, round-robin, so timing drift across the sweep biases all
-   * candidates equally instead of whoever happens to be measured last. Per
-   * candidate the cost is the trimmed mean over its rounds.
+   * candidates equally instead of whoever happens to be measured last. Each
+   * candidate is scored by the minimum batch time observed across its rounds.
    */
   samplesPerCandidate: number;
   /** Character used to pad not-yet-recovered positions. Must be deterministic. */
