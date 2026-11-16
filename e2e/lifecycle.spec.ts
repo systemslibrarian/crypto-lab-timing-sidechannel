@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { auditControlNames, formatControlNameFailures } from './control-names';
 import { expect, test } from '@playwright/test';
 
 test('key lifecycle stages reveal their limits with the keyboard', async ({ page }) => {
@@ -17,5 +18,8 @@ test('key lifecycle stages reveal their limits with the keyboard', async ({ page
   await expect(section.locator('a')).toHaveAttribute('href', 'https://www.usenix.org/conference/woot26/presentation/brumley');
   const accessibility = await new AxeBuilder({ page }).include('section[aria-labelledby="key-lifecycle"]').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
   expect(accessibility.violations).toEqual([]);
+  // axe's `label` rule accepts a bare `placeholder` as an accessible name, so a
+  // deleted label can leave this gate green. See `control-names.ts`.
+  expect(formatControlNameFailures(await auditControlNames(page)), 'form controls named only by placeholder/title in the key-lifecycle section').toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
