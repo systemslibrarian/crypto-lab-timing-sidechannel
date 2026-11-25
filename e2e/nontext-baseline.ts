@@ -18,21 +18,4 @@
 export const NONTEXT_BASELINE: Record<
   string,
   { ratio: number; required: number; unverified: boolean }
-> = {
-  /*
-   * The two shared-top-bar controls: fill-less buttons whose 1px
-   * color-mix(accent 38%, transparent) border is their only delineator against
-   * the fixed #0b1512 bar. The same bar is baselined fleet-wide (timing-oracle
-   * records it at 1.49, mac-race at 1.51) because the top bar is the shared
-   * header design — brightening one lab's border is exactly the per-lab drift
-   * the header policy warns against. Fix as a deliberate fleet pass, then
-   * delete these two entries. The ratio differs by theme here because the bar
-   * inherits this lab's `--accent` (#b45309 light at 1.49:1, #f5b14c dark at
-   * 2.40:1); the entry records the WORSE of the two, captured through the
-   * gate's own path, and the ratchet compares against whichever state
-   * reproduces it. The hovered rendering is NOT baselined: on hover the fill
-   * becomes a 14% accent mix and the border the full accent, which clears 3:1
-   * — measured live by the hover states the drive scans.
-   */
-  "control-boundary|a.cl-btn": { ratio: 1.49, required: 3.0, unverified: false },
-};
+> = {};
